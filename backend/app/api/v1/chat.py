@@ -11,6 +11,7 @@ from app.models.conversation import Conversation, ConversationSummary, Message
 from app.models.sentiment import SentimentAnalysis
 from app.models.user import User
 from app.schemas.chat import (
+    CitationRead,
     ConversationCreate,
     ConversationRead,
     ConversationSummaryRead,
@@ -19,6 +20,7 @@ from app.schemas.chat import (
     MessageResponse,
     SentimentRead,
 )
+from app.services.rag.generator import rag_generator
 from app.services.sessions.manager import session_manager
 
 router = APIRouter(prefix="/conversations", tags=["Chat & Conversations"])
@@ -125,13 +127,34 @@ async def post_message(
     history = await session_manager.load_conversation_context(db, conv.id)
     llm_messages = [{"role": "user" if m.sender_role == "CUSTOMER" else "assistant", "content": m.masked_content} for m in history]
 
-    # 4. Generate AI response via configurable provider
-    llm = get_llm_provider()
-    system_prompt = (
-        "You are an empathetic, professional AI customer service assistant. "
-        "Provide direct, helpful assistance based strictly on verified policy and facts."
+    # 4. Generate AI response via RAG generator with fallback
+    rag_result = await rag_generator.answer_query(
+        db=db,
+        query=user_msg.content,
+        user_role=current_user.role,
+        top_k=3
     )
-    assistant_text = await llm.generate_response(llm_messages, system_prompt=system_prompt)
+
+    if not rag_result.refused and rag_result.citations:
+        assistant_text = rag_result.answer
+        citations_data = [
+            CitationRead(
+                document=c["document"],
+                version=c["version"],
+                section=c.get("section")
+            )
+            for c in rag_result.citations
+        ]
+    else:
+        # Fallback to standard conversational response for general greetings or out-of-KB talk
+        llm = get_llm_provider()
+        system_prompt = (
+            "You are an empathetic, professional AI customer service assistant. "
+            "Provide direct, helpful assistance based strictly on verified policy and facts."
+        )
+        assistant_text = await llm.generate_response(llm_messages, system_prompt=system_prompt)
+        citations_data = []
+
     masked_assistant_content = masker.mask_text(assistant_text)
 
     # 5. Store assistant message
@@ -154,7 +177,7 @@ async def post_message(
         user_message=MessageRead.model_validate(user_msg),
         assistant_message=MessageRead.model_validate(asst_msg),
         escalated=False,
-        citations=[]
+        citations=citations_data
     )
 
 
