@@ -21,6 +21,9 @@ from app.schemas.chat import (
     SentimentRead,
 )
 from app.services.rag.generator import rag_generator
+from app.services.sentiment.analyzer import sentiment_analyzer
+from app.services.sentiment.tone import tone_adapter
+from app.services.sessions.language import language_processor
 from app.services.sessions.manager import session_manager
 
 router = APIRouter(prefix="/conversations", tags=["Chat & Conversations"])
@@ -112,27 +115,59 @@ async def post_message(
     # 1. Mask sensitive customer data (Credit cards, passwords, etc.)
     masked_user_content = masker.mask_text(message_in.content)
 
-    # 2. Store customer message
+    # 2. Language Detection & Entity Locking
+    lang_res = language_processor.detect_language(message_in.content)
+
+    # 3. Load rolling context (up to 10 messages) for conversational sentiment
+    history = await session_manager.load_conversation_context(db, conv.id)
+    past_customer_msgs = [m.content for m in history if m.sender_role == "CUSTOMER"]
+
+    # 4. Context-aware Sentiment, Sarcasm & Risk Analysis
+    sentiment_res = sentiment_analyzer.analyze_message(
+        message=message_in.content,
+        recent_history=past_customer_msgs
+    )
+
+    # 5. Store customer message
     user_msg = Message(
         conversation_id=conv.id,
         sender_role="CUSTOMER",
         content=message_in.content,
         masked_content=masked_user_content,
+        language_code=lang_res.primary_language,
+        is_transliterated=lang_res.is_transliterated,
         created_at=now
     )
     db.add(user_msg)
     await db.flush()
 
-    # 3. Load rolling context (up to 10 messages)
-    history = await session_manager.load_conversation_context(db, conv.id)
-    llm_messages = [{"role": "user" if m.sender_role == "CUSTOMER" else "assistant", "content": m.masked_content} for m in history]
+    # 6. Store Sentiment Analysis Record
+    sentiment_record = SentimentAnalysis(
+        message_id=user_msg.id,
+        sentiment=sentiment_res.sentiment,
+        confidence=sentiment_res.confidence,
+        urgency=sentiment_res.urgency,
+        sarcasm=sentiment_res.sarcasm,
+        risk_type=sentiment_res.risk_type,
+        raw_scores=sentiment_res.raw_scores,
+        created_at=now
+    )
+    db.add(sentiment_record)
 
-    # 4. Generate AI response via RAG generator with fallback
+    llm_messages = [{"role": "user" if m.sender_role == "CUSTOMER" else "assistant", "content": m.masked_content} for m in history]
+    llm_messages.append({"role": "user", "content": user_msg.masked_content})
+
+    # 7. Generate AI response via RAG generator with tone adaptation fallback
     rag_result = await rag_generator.answer_query(
         db=db,
         query=user_msg.content,
         user_role=current_user.role,
         top_k=3
+    )
+
+    tone_instruction = tone_adapter.get_system_directive(
+        sentiment=sentiment_res.sentiment,
+        risk_type=sentiment_res.risk_type
     )
 
     if not rag_result.refused and rag_result.citations:
@@ -146,23 +181,25 @@ async def post_message(
             for c in rag_result.citations
         ]
     else:
-        # Fallback to standard conversational response for general greetings or out-of-KB talk
+        # Fallback to standard conversational response with tone adaptation
         llm = get_llm_provider()
         system_prompt = (
             "You are an empathetic, professional AI customer service assistant. "
-            "Provide direct, helpful assistance based strictly on verified policy and facts."
+            "Provide direct, helpful assistance based strictly on verified policy and facts.\n"
+            f"{tone_instruction}"
         )
         assistant_text = await llm.generate_response(llm_messages, system_prompt=system_prompt)
         citations_data = []
 
     masked_assistant_content = masker.mask_text(assistant_text)
 
-    # 5. Store assistant message
+    # 8. Store assistant message
     asst_msg = Message(
         conversation_id=conv.id,
         sender_role="ASSISTANT",
         content=assistant_text,
         masked_content=masked_assistant_content,
+        language_code=lang_res.primary_language,
         created_at=Clock.now()
     )
     db.add(asst_msg)
@@ -173,10 +210,29 @@ async def post_message(
     await db.refresh(user_msg)
     await db.refresh(asst_msg)
 
+    user_msg_read = MessageRead(
+        id=user_msg.id,
+        conversation_id=user_msg.conversation_id,
+        sender_role=user_msg.sender_role,
+        content=user_msg.content,
+        masked_content=user_msg.masked_content,
+        language_code=user_msg.language_code,
+        is_transliterated=user_msg.is_transliterated,
+        created_at=user_msg.created_at,
+        sentiment=SentimentRead(
+            sentiment=sentiment_res.sentiment,
+            confidence=sentiment_res.confidence,
+            urgency=sentiment_res.urgency,
+            sarcasm=sentiment_res.sarcasm,
+            risk_type=sentiment_res.risk_type
+        )
+    )
+
     return MessageResponse(
-        user_message=MessageRead.model_validate(user_msg),
+        user_message=user_msg_read,
         assistant_message=MessageRead.model_validate(asst_msg),
-        escalated=False,
+        escalated=bool(sentiment_res.risk_type),
+        escalation_reason=sentiment_res.risk_type,
         citations=citations_data
     )
 

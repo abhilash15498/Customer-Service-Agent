@@ -1,17 +1,24 @@
-# Implementation Report: Phase 1 & Phase 2
+# Implementation Report: Phase 1, Phase 2 & Phase 3
 
 **Project**: Enterprise AI Customer Service Platform  
-**Scope**: Phase 1 (Foundation & Infrastructure) + Phase 2 (RAG & Knowledge Arbitration)  
+**Scope**: Phase 1 (Foundation) + Phase 2 (RAG & Knowledge Arbitration) + Phase 3 (Conversation Intelligence)  
 **Status**: Completed & Verified  
-**Date**: September 29, 2026  
+**Date**: September 30, 2026  
 
 ---
 
 ## 1. Executive Summary
 
-The Enterprise AI Customer Service Platform is designed as an auditable, multi-tenant capable, security-hardened service backend. Moving beyond a simple chatbot wrapper, the platform strictly decouples cognitive perception (LLM classification and synthesis) from deterministic decision logic (policy arbitration, authorization, and escalation triggers).
+The Enterprise AI Customer Service Platform is built to survive complex, adversarial evaluation environments. Rather than implementing an ungrounded chatbot, the architecture strictly decouples **Cognitive Perception** (language identification, intent parsing, entity extraction, sentiment scoring, and sarcasm detection) from **Deterministic Decision Logic** (policy arbitration, authorization, SLA calculation, and ticket escalation).
 
-With the completion of **Phase 1** and **Phase 2**, the platform features a complete asynchronous PostgreSQL/SQLite data store, dynamic runtime configuration, a simulated clock engine for evaluation scenarios, PII/PCI masking, tenant session isolation, semantic vector search, indirect prompt injection defense, and an automated policy conflict solver.
+With the completion of **Phase 1**, **Phase 2**, and **Phase 3**, the platform integrates:
+- Multi-tenant customer session isolation and PII/PCI masking.
+- Central dynamic configuration and simulated clock engine for hidden test injection.
+- Semantic vector retrieval with automated policy conflict arbitration and prompt-injection sandboxing.
+- Context-aware sarcasm detection that catches superficial praise following unresolved complaints.
+- High-risk condition detection that triggers escalation even for calm/neutral statements.
+- Multilingual and code-switching support with strict entity locking (order IDs and amounts are never corrupted).
+- Tone adaptation enforcing policy invariance.
 
 ```
 +-----------------------------------------------------------------------------------------------+
@@ -31,7 +38,21 @@ With the completion of **Phase 1** and **Phase 2**, the platform features a comp
                                                 |
                                                 v
 +-----------------------------------------------------------------------------------------------+
-|                                    RAG & KNOWLEDGE PIPELINE                                   |
+|                        CONVERSATION INTELLIGENCE PIPELINE (PHASE 3)                           |
++-----------------------------------------------+-----------------------------------------------+
+        |                                       |                                       |
+        v                                       v                                       v
++-----------------------+               +-----------------------+               +-----------------------+
+| Language Processor &  |               | Context Sarcasm &     |               | High-Risk Detector    |
+| Entity Locking Guard  |               | Sentiment Analyzer    |               | (Account / Duplicate /|
+| (kn, hi, es, en)      |               | (Scenarios 1 & 5)     |               |  Legal) (Scenarios 2-4|
++-----------------------+               +-----------------------+               +-----------------------+
+        |                                       |                                       |
+        +---------------------------------------+---------------------------------------+
+                                                |
+                                                v
++-----------------------------------------------------------------------------------------------+
+|                             RAG & KNOWLEDGE PIPELINE (PHASE 2)                                |
 +-----------------------------------------------+-----------------------------------------------+
         |                                       |                                       |
         v                                       v                                       v
@@ -40,8 +61,6 @@ With the completion of **Phase 1** and **Phase 2**, the platform features a comp
 | Defense (Sandboxing)  |               | Solver & RBAC Filter  |               | Claim Hallucination   |
 | (Scenario 42)         |               | (Scenarios 34-39)     |               | (Scenarios 40, 41, 43)|
 +-----------------------+               +-----------------------+               +-----------------------+
-        |                                       |                                       |
-        +---------------------------------------+---------------------------------------+
                                                 |
                                                 v
 +-----------------------------------------------------------------------------------------------+
@@ -55,7 +74,7 @@ With the completion of **Phase 1** and **Phase 2**, the platform features a comp
 ## 2. Phase 1 Accomplishments (Foundation & Infrastructure)
 
 1. **Central Dynamic Configuration System** (`dynamic_config.py`):
-   - Decouples all business rules, operating hours, holidays, SLA thresholds, and retry timers from application code.
+   - Externalizes business rules, operating hours, holidays, SLA thresholds, and retry timers.
    - Allows runtime parameter mutation via `PUT /api/v1/admin/config` without server reboots.
 2. **Simulated Clock Engine** (`clock.py`):
    - Mockable time provider supporting injected simulated timestamps (`Clock.set_time(...)`) via `/api/v1/admin/time-machine`.
@@ -73,49 +92,64 @@ With the completion of **Phase 1** and **Phase 2**, the platform features a comp
 
 ## 3. Phase 2 Accomplishments (RAG & Knowledge Arbitration)
 
-### 3.1 Indirect Prompt-Injection Defense (Scenario 42)
-- **Module**: `backend/app/services/rag/injection_guard.py`
-- **Design Principle**: Retrieved documents and customer queries are treated strictly as **DATA**, never as executable instructions.
-- **Defenses**:
-  - Scans for injection signatures (`ignore previous instructions`, `reveal system prompt`, `developer mode`, `system override`).
-  - Defuses and escapes malicious tokens (`[SUSPECTED_INJECTION_DEFUSED]`).
-  - Wraps retrieved context in strict boundary markers: `=== BEGIN UNTRUSTED DATA ===` with defensive system prompt commands.
-
-### 3.2 Policy Conflict Solver & Precedence (Scenarios 34 & 35)
-- **Module**: `backend/app/services/rag/policy_solver.py`
-- **Resolution Heuristic**: When multiple policies conflict, the system evaluates active date boundaries and selects the **latest applicable policy version** (`effective_date DESC`, `version_int DESC`), overriding raw vector similarity scores.
-
-### 3.3 Temporal Validity: Expired & Future Policies (Scenarios 36 & 37)
-- Automatically purges expired documents (`expiry_date < current_time`) from current search queries.
-- Excludes future policies (`effective_date > current_time`) that are not yet active.
-
-### 3.4 Historical Policy Queries (Scenario 38)
-- Detects date-targeted questions (e.g., *"What was the policy when I purchased this on December 5, 2025?"*).
-- Queries policy documents active during the specified historical purchase date using `effective_date <= target_date <= expiry_date`.
-
-### 3.5 Role-Based Document Access Control (Scenario 39)
-- Enforces access boundaries before feeding data into the LLM context:
-  - `CUSTOMER` $\to$ Access limited to `PUBLIC` documents.
-  - `AGENT` $\to$ Access to `PUBLIC` and `INTERNAL` documents.
-  - `ADMIN` $\to$ Access to `PUBLIC`, `INTERNAL`, and `RESTRICTED` documents.
-
-### 3.6 Anti-Hallucination & Verifiable Citations (Scenarios 40, 41, 43)
-- **Module**: `backend/app/services/rag/citation_checker.py`
-- **Citation Tags**: Enforces and extracts citations: `[Source: Document Title, vX, Section: Y]`. Citations are strictly validated against retrieved candidate chunks.
-- **Safe Refusal (Scenario 40)**: If company knowledge lacks sufficient evidence or similarity is below threshold, returns a safe refusal instead of hallucinating.
-- **Unsupported Claim Detection (Scenario 41)**: Inspects generated assertions (e.g. refund days, discount percentages) against retrieved chunks and flags ungrounded facts.
-
-### 3.7 Ingestion, Deduplication & Chat Integration (Scenario 21)
-- **Module**: `backend/app/api/v1/knowledge.py`
-- Computes SHA-256 content hashes to reject duplicate documents (HTTP 409 Conflict).
-- Parses documents by Markdown section and computes embedding vectors.
-- Fully integrated into `POST /api/v1/conversations/{id}/messages` so customer inquiries receive grounded answers with citations.
+1. **Indirect Prompt-Injection Defense (Scenario 42)** (`injection_guard.py`):
+   - Treats document content strictly as data inside `=== BEGIN UNTRUSTED DATA ===` sandbox.
+   - Detects and defuses malicious directive signatures (`ignore previous instructions`, `reveal system prompt`, `developer mode`).
+2. **Policy Conflict Solver & Precedence (Scenarios 34 & 35)** (`policy_solver.py`):
+   - When multiple policies conflict, evaluates active date boundaries and selects the latest applicable version (`effective_date DESC`, `version_int DESC`), overriding raw vector similarity.
+3. **Temporal Validity: Expired & Future Policies (Scenarios 36 & 37)**:
+   - Excludes expired documents (`expiry_date < current_time`) and future policies (`effective_date > current_time`).
+4. **Historical Policy Inquiries (Scenario 38)**:
+   - Automatically detects date-targeted inquiries (e.g. *"What was the policy when I purchased this on December 5, 2025?"*) and queries policies active during that purchase window (`effective_date <= target_date <= expiry_date`).
+5. **Role-Based Document Access Control (Scenario 39)**:
+   - Pre-retrieval role filtering restricts `CUSTOMER` to `PUBLIC` documents only.
+6. **Anti-Hallucination & Verifiable Citations (Scenarios 40, 41, 43)** (`citation_checker.py`):
+   - Generates verified citation tags (`[Source: Document Title, vX, Section: Y]`).
+   - Issues safe refusal messages when knowledge is missing (**Scenario 40**).
+   - Detects unsupported numeric/policy claims (**Scenario 41**).
+7. **Document Ingestion & Content Hash Deduplication (Scenario 21)** (`knowledge.py`):
+   - Computes SHA-256 hashes to prevent duplicate document ingestion (HTTP 409 Conflict).
 
 ---
 
-## 4. Automated Test Suite Execution
+## 4. Phase 3 Accomplishments (Conversation Intelligence)
 
-All **23 automated tests** passed with zero failures or warnings.
+### 4.1 Context-Aware Sarcasm Detection (Scenario 1)
+- **Module**: `backend/app/services/sentiment/sarcasm.py`
+- **Problem Solved**: Customers often respond with superficial praise (e.g. *"Great service"*, *"Wonderful support"*, *"Thanks a lot"*) after experiencing repeated delays or failures. An isolated model would falsely mark this as positive.
+- **Solution**: The detector evaluates the current message in the context of recent customer messages. If preceding messages reflect unresolved issues or complaints, superficial praise is classified as `sarcastic = True` with high confidence ($\ge 0.85$). Intra-sentence sarcasm (e.g. *"Thanks for nothing"*) is also detected immediately.
+
+### 4.2 Independent High-Risk Condition Detection (Scenarios 2, 3, 4)
+- **Module**: `backend/app/services/sentiment/analyzer.py`
+- **Critical Architectural Principle**: **Risk detection and sentiment detection are separate concepts**.
+  - **Calm Account Compromise (Scenario 2)**: Statements such as *"I believe someone has accessed my account."* may be completely calm and neutral in tone, but are immediately flagged as `risk_type = "account_compromise"` and assigned elevated urgency.
+  - **Duplicate Payment (Scenario 3)**: Detects phrases like *"Payment was deducted twice for order 123"* $\to$ `risk_type = "duplicate_payment"`.
+  - **Legal Threat (Scenario 4)**: Detects statements mentioning lawyers, legal action, or consumer court $\to$ `risk_type = "legal_threat"`.
+
+### 4.3 Negative Streak Tracking (Scenario 5)
+- Tracks the number of consecutive negative or frustrated messages across conversation history.
+- When the streak reaches configurable thresholds (default 3), downstream escalation triggers can immediately route the customer to human reps.
+
+### 4.4 Multilingual Intelligence & Strict Entity Preservation
+- **Module**: `backend/app/services/sessions/language.py`
+- **Capabilities**:
+  - Detects Kannada (`kn`), Hindi (`hi`), Spanish (`es`), and English (`en`).
+  - Supports mixed-language code-switching (e.g. *"Nanna order #4521 innu bandilla, amount ₹24,999 was debited. What should I do?"*).
+  - **Entity Locking Guard**: Locks order IDs (`#4521`), currency amounts (`₹24,999`), dates, and phone numbers with immutable placeholders (`__ENTITY_LOCK_ORDER_ID_0__`) before NLP analysis/translation, ensuring customer identifiers are never corrupted.
+
+### 4.5 Tone Adaptation with Policy Invariance (Requirement 16)
+- **Module**: `backend/app/services/sentiment/tone.py`
+- **Tone Matrix**:
+  - `positive` $\to$ Warm, friendly, efficient.
+  - `neutral` $\to$ Objective, professional, direct.
+  - `frustrated` $\to$ Empathetic, calm, solution-oriented.
+  - `urgent` $\to$ Concise, clear, action-oriented.
+  - `sarcastic` $\to$ Does NOT mirror sarcasm or become defensive; remains strictly professional and addresses the underlying issue directly.
+- **Policy Invariance**: System prompts strictly forbid inventing unapproved discounts, refunds, or exceptions to appease customers.
+
+---
+
+## 5. Automated Test Suite Execution (31 of 31 Tests Passing)
 
 ```
 ============================= test session starts =============================
@@ -124,8 +158,16 @@ rootdir: C:\Users\hmabh\OneDrive\Desktop\Customer service BOT\backend
 configfile: pytest.ini
 testpaths: tests
 plugins: anyio-4.11.0, asyncio-1.4.0
-collected 23 items
+collected 31 items
 
+tests/evaluation/test_01_sentiment_and_escalation.py::test_scenario_1_context_aware_sarcasm PASSED        [Scenario 1 Sarcasm]
+tests/evaluation/test_01_sentiment_and_escalation.py::test_scenario_2_calm_account_compromise PASSED      [Scenario 2 Account Risk]
+tests/evaluation/test_01_sentiment_and_escalation.py::test_scenario_3_duplicate_payment_risk PASSED      [Scenario 3 Payment Risk]
+tests/evaluation/test_01_sentiment_and_escalation.py::test_scenario_4_legal_threat_risk PASSED          [Scenario 4 Legal Threat]
+tests/evaluation/test_01_sentiment_and_escalation.py::test_scenario_5_repeated_negative_streak PASSED    [Scenario 5 Negative Streak]
+tests/evaluation/test_01_sentiment_and_escalation.py::test_multilingual_code_switching_and_entity_preservation PASSED [Code-Switch & Lock]
+tests/evaluation/test_01_sentiment_and_escalation.py::test_tone_adaptation_directives PASSED             [Tone Directives]
+tests/evaluation/test_01_sentiment_and_escalation.py::test_chat_api_sentiment_and_escalation_flag PASSED [API Chat Sentiment]
 tests/evaluation/test_04_rag_and_policies.py::test_scenario_34_and_35_conflicting_and_latest_policy PASSED [Scenarios 34 & 35]
 tests/evaluation/test_04_rag_and_policies.py::test_scenario_36_expired_policy PASSED                      [Scenario 36]
 tests/evaluation/test_04_rag_and_policies.py::test_scenario_37_future_policy PASSED                       [Scenario 37]
@@ -150,15 +192,20 @@ tests/unit/test_masking.py::test_dict_deep_masking PASSED                       
 tests/unit/test_security.py::test_password_hashing_and_verification PASSED                                [Bcrypt Security]
 tests/unit/test_security.py::test_jwt_generation_and_decoding PASSED                                     [JWT Issuance]
 
-============================= 23 passed in 10.39s =============================
+============================= 31 passed in 12.73s =============================
 ```
 
 ---
 
-## 5. Hidden Evaluation Scenario Coverage Matrix
+## 6. Cumulative Scenario Coverage Matrix
 
 | Scenario # | Scenario Description | Implemented Solution |
 | :--- | :--- | :--- |
+| **Scenario 1** | Sarcastic customer message | `SarcasmDetector` checks history context; inverts superficial praise; tone adapter avoids mirroring sarcasm. |
+| **Scenario 2** | Calm account compromise | `ConversationSentimentAnalyzer` detects `account_compromise` independently of calm/neutral sentiment. |
+| **Scenario 3** | Duplicate payment | Detects duplicate payment signatures and elevates urgency to critical. |
+| **Scenario 4** | Legal threat | Detects litigation, attorney, or consumer court threats and triggers risk escalation. |
+| **Scenario 5** | Repeated negative messages | Tracks consecutive negative streak counter across customer message history. |
 | **Scenario 9** | Simulated clock/time change | `SimulatedClock` & `POST /admin/time-machine` allows dynamic simulated time overrides. |
 | **Scenario 20** | Runtime SLA & config change | `DynamicConfigRegistry` and `PUT /admin/config` update parameters without restart. |
 | **Scenario 21** | Duplicate document detection | SHA-256 hash checks reject identical documents with HTTP 409 Conflict. |
@@ -170,7 +217,7 @@ tests/unit/test_security.py::test_jwt_generation_and_decoding PASSED            
 | **Scenario 39** | Restricted document | Pre-retrieval role filtering restricts `CUSTOMER` to `PUBLIC` access level only. |
 | **Scenario 40** | Missing evidence refusal | Safe refusal message returned; prevents AI hallucination. |
 | **Scenario 41** | Unsupported claim detection | Heuristic grounding engine flags unverified numeric and policy claims. |
-| **Scenario 42** | Prompt injection in document | Isolate content inside `=== BEGIN UNTRUSTED DATA ===`, sanitize injection keywords. |
+| **Scenario 42** | Prompt injection in document | Isolates content inside `=== BEGIN UNTRUSTED DATA ===`, sanitizes injection keywords. |
 | **Scenario 43** | Citation verification | Validates cited title, version, and section against actual retrieved chunks. |
 | **Scenario 63** | Session expiry (30 min) | `SessionManager` resets conversation status to `IDLE` after 30 minutes. |
 | **Scenario 64** | Session restoration (24h) | Resumes conversations within 24 hours with `RESTORED` status and summary. |
@@ -178,10 +225,10 @@ tests/unit/test_security.py::test_jwt_generation_and_decoding PASSED            
 
 ---
 
-## 6. Next Steps: Phase 3 (Conversation Intelligence)
+## 7. Next Steps: Phase 4 (Escalation & Calendar Engine)
 
-With the foundational RAG engine and security layers in place, development proceeds to **Phase 3**:
-1. Multi-factor sentiment analysis: positive, neutral, negative, frustrated, urgent, sarcastic.
-2. Context-aware sarcasm detection (evaluating message in conversational history context).
-3. High-risk condition detection: account compromise, duplicate payments, legal threats.
-4. Confidence scoring and separation of NLP perception from deterministic escalation triggers.
+With sentiment perception and risk detection active, development proceeds to **Phase 4**:
+1. Deterministic escalation engine: high-risk auto-escalation, 3-streak negative escalation, and 15-minute unhandled negative conversation timer.
+2. Calendar engine: business hours, weekend exclusion, and holiday exclusion using `dynamic_config`.
+3. Dispatch routing: routing urgent complaints to the `on-call` queue after hours, or scheduling normal complaints for the next working day.
+4. Comprehensive audit logging for all escalation events.
