@@ -51,3 +51,59 @@ class KnowledgeQueryResponse(BaseModel):
     refused: bool = False
     unsupported_claim_detected: bool = False
     warning_notes: Optional[str] = None
+
+
+class DeployRequest(BaseModel):
+    force: bool = False
+    simulated_degradation: bool = False
+
+
+class DeployResponse(BaseModel):
+    status: str
+    version_id: str
+    deployment_id: Optional[str] = None
+    scheduled_start: Optional[str] = None
+    scheduled_end: Optional[str] = None
+    deployed_at: Optional[str] = None
+    grounding_score: Optional[float] = None
+    retrieval_mrr: Optional[float] = None
+    reasons: Optional[List[str]] = None
+    message: Optional[str] = None
+
+
+class HealthCheckRequest(BaseModel):
+    simulated_failure: bool = False
+
+
+class HealthCheckResponse(BaseModel):
+    status: str
+    deployment_id: str
+    failure_reason: Optional[str] = None
+    rollback: Optional[Dict[str, Any]] = None
+    checked_at: Optional[str] = None
+    within_grace_window: Optional[bool] = None
+
+
+class RollbackRequest(BaseModel):
+    reason: str = Field(..., min_length=1)
+
+
+class RollbackResponse(BaseModel):
+    status: str
+    rolled_back_version_id: str
+    rolled_back_version_int: int
+    restored_version_id: Optional[str] = None
+    restored_version_int: Optional[int] = None
+    reason: str
+    automatic: bool
+
+
+class RetryRequest(BaseModel):
+    reason: str = Field(..., min_length=1)
+
+
+class RetryResponse(BaseModel):
+    status: str
+    retry_count: int
+    next_retry_at: Optional[str] = None
+    reason: Optional[str] = None

@@ -20,6 +20,7 @@ from app.schemas.chat import (
     MessageResponse,
     SentimentRead,
 )
+from app.services.escalation.engine import escalation_engine
 from app.services.rag.generator import rag_generator
 from app.services.sentiment.analyzer import sentiment_analyzer
 from app.services.sentiment.tone import tone_adapter
@@ -206,6 +207,21 @@ async def post_message(
 
     # Update conversation last activity timestamp
     conv.last_message_at = Clock.now()
+
+    # 9. Evaluate Deterministic Escalation Triggers (High risk, negative streak)
+    esc_decision = escalation_engine.evaluate_triggers(
+        sentiment_res=sentiment_res,
+        user_message=message_in.content
+    )
+    esc_result = None
+    if esc_decision.should_escalate:
+        esc_result = await escalation_engine.execute_escalation(
+            db=db,
+            conversation=conv,
+            decision=esc_decision,
+            summary_text=message_in.content
+        )
+
     await db.commit()
     await db.refresh(user_msg)
     await db.refresh(asst_msg)
@@ -228,11 +244,16 @@ async def post_message(
         )
     )
 
+    is_escalated = esc_result.escalated if esc_result else bool(sentiment_res.risk_type)
+    esc_reason = esc_result.reason if esc_result else sentiment_res.risk_type
+    ticket_id = esc_result.ticket_id if esc_result else None
+
     return MessageResponse(
         user_message=user_msg_read,
         assistant_message=MessageRead.model_validate(asst_msg),
-        escalated=bool(sentiment_res.risk_type),
-        escalation_reason=sentiment_res.risk_type,
+        escalated=is_escalated,
+        escalation_reason=esc_reason,
+        ticket_id=ticket_id,
         citations=citations_data
     )
 
