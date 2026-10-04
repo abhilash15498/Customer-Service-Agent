@@ -6,6 +6,7 @@ from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.escalations import router as escalations_router
+from app.api.v1.files import router as files_router
 from app.api.v1.knowledge import router as knowledge_router
 from app.api.v1.tickets import router as tickets_router
 from app.core.config import settings
@@ -44,6 +45,7 @@ app.include_router(chat_router, prefix=settings.API_V1_PREFIX)
 app.include_router(knowledge_router, prefix=settings.API_V1_PREFIX)
 app.include_router(tickets_router, prefix=settings.API_V1_PREFIX)
 app.include_router(escalations_router, prefix=settings.API_V1_PREFIX)
+app.include_router(files_router, prefix=settings.API_V1_PREFIX)
 app.include_router(admin_router, prefix=settings.API_V1_PREFIX)
 
 

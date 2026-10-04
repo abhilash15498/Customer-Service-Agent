@@ -64,3 +64,4 @@ class DataMasker:
 
 
 masker = DataMasker()
+masking_engine = masker
