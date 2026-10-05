@@ -1,3 +1,4 @@
+import re
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,8 @@ from app.services.escalation.engine import escalation_engine
 from app.services.rag.generator import rag_generator
 from app.services.sentiment.analyzer import sentiment_analyzer
 from app.services.sentiment.tone import tone_adapter
+from app.services.sessions.correction import correction_detector
+from app.services.sessions.intent import intent_classifier
 from app.services.sessions.language import language_processor
 from app.services.sessions.manager import session_manager
 
@@ -119,17 +122,59 @@ async def post_message(
     # 2. Language Detection & Entity Locking
     lang_res = language_processor.detect_language(message_in.content)
 
-    # 3. Load rolling context (up to 10 messages) for conversational sentiment
+    # 3. Entity Tracking across turns
+    meta = dict(conv.conversation_metadata or {})
+    confirmed_entities = dict(meta.get("confirmed_entities", {}))
+    for lock in lang_res.protected_entities:
+        if lock.entity_type == "ORDER_ID":
+            val = getattr(lock, "entity_value", None)
+            if val:
+                clean_id = val.strip()
+            else:
+                clean_id = re.sub(r"(?i)^(?:order|ordr|oder|order\s*#?|#|order\s*id:?|commande|pedido|bestellung)\s*[:#\-]?", "", lock.raw_text).strip()
+            if clean_id:
+                confirmed_entities["order_id"] = clean_id
+        elif lock.entity_type == "AMOUNT":
+            val = getattr(lock, "entity_value", None)
+            clean_amt = (val or lock.raw_text).replace(",", "").strip()
+            clean_amt = re.sub(r"(?i)[₹$€rs\.inrupeesdollars\s]", "", clean_amt).strip()
+            try:
+                confirmed_entities["amount"] = float(clean_amt)
+            except ValueError:
+                pass
+
+    # 4. Self-Correction Detection (Scenario 62)
+    corr_res = correction_detector.detect_correction(message_in.content, active_entities=confirmed_entities)
+    if corr_res.has_correction:
+        if corr_res.field and corr_res.updated_value:
+            confirmed_entities[corr_res.field] = corr_res.updated_value
+        meta["confirmed_entities"] = confirmed_entities
+        hist = list(meta.get("correction_history", []))
+        hist.append(corr_res.model_dump())
+        meta["correction_history"] = hist
+        conv.conversation_metadata = meta
+
+    meta["confirmed_entities"] = confirmed_entities
+    conv.conversation_metadata = meta
+
+    # 5. Intent Classification & Multi-Request Decomposition (Scenarios 60, 61)
+    intent_res = intent_classifier.analyze_intent(message_in.content)
+
+    # 6. Load rolling context (up to 10 messages) for conversational sentiment
     history = await session_manager.load_conversation_context(db, conv.id)
     past_customer_msgs = [m.content for m in history if m.sender_role == "CUSTOMER"]
 
-    # 4. Context-aware Sentiment, Sarcasm & Risk Analysis
+    # 7. Context-aware Sentiment, Sarcasm & Risk Analysis
     sentiment_res = sentiment_analyzer.analyze_message(
         message=message_in.content,
         recent_history=past_customer_msgs
     )
+    # Compound intent elevation: if intent classifier flags high-risk (e.g. duplicate payment)
+    if intent_res.requires_escalation and not sentiment_res.risk_type:
+        sentiment_res.risk_type = intent_res.primary_intent
+        sentiment_res.urgency = "critical"
 
-    # 5. Store customer message
+    # 8. Store customer message
     user_msg = Message(
         conversation_id=conv.id,
         sender_role="CUSTOMER",
@@ -142,7 +187,7 @@ async def post_message(
     db.add(user_msg)
     await db.flush()
 
-    # 6. Store Sentiment Analysis Record
+    # 9. Store Sentiment Analysis Record
     sentiment_record = SentimentAnalysis(
         message_id=user_msg.id,
         sentiment=sentiment_res.sentiment,
@@ -155,46 +200,60 @@ async def post_message(
     )
     db.add(sentiment_record)
 
-    llm_messages = [{"role": "user" if m.sender_role == "CUSTOMER" else "assistant", "content": m.masked_content} for m in history]
-    llm_messages.append({"role": "user", "content": user_msg.masked_content})
-
-    # 7. Generate AI response via RAG generator with tone adaptation fallback
-    rag_result = await rag_generator.answer_query(
-        db=db,
-        query=user_msg.content,
-        user_role=current_user.role,
-        top_k=3
-    )
-
-    tone_instruction = tone_adapter.get_system_directive(
-        sentiment=sentiment_res.sentiment,
-        risk_type=sentiment_res.risk_type
-    )
-
-    if not rag_result.refused and rag_result.citations:
-        assistant_text = rag_result.answer
-        citations_data = [
-            CitationRead(
-                document=c["document"],
-                version=c["version"],
-                section=c.get("section")
-            )
-            for c in rag_result.citations
-        ]
+    # 10. Generate AI response or deterministic safe clarification
+    citations_data = []
+    if lang_res.low_confidence and lang_res.clarification_prompt:
+        # Scenario 59: Low language confidence clarification
+        assistant_text = lang_res.clarification_prompt
+    elif corr_res.has_correction and corr_res.confirmation_message:
+        # Scenario 62: Self-correction confirmation
+        assistant_text = corr_res.confirmation_message
+    elif intent_res.low_confidence and intent_res.clarification_prompt:
+        # Scenario 60: Low intent confidence clarification
+        assistant_text = intent_res.clarification_prompt
     else:
-        # Fallback to standard conversational response with tone adaptation
-        llm = get_llm_provider()
-        system_prompt = (
-            "You are an empathetic, professional AI customer service assistant. "
-            "Provide direct, helpful assistance based strictly on verified policy and facts.\n"
-            f"{tone_instruction}"
+        # Standard RAG / Conversational answering
+        rag_result = await rag_generator.answer_query(
+            db=db,
+            query=user_msg.content,
+            user_role=current_user.role,
+            top_k=3
         )
-        assistant_text = await llm.generate_response(llm_messages, system_prompt=system_prompt)
-        citations_data = []
+        if not rag_result.refused and rag_result.citations:
+            assistant_text = rag_result.answer
+            citations_data = [
+                CitationRead(
+                    document=c["document"],
+                    version=c["version"],
+                    section=c.get("section")
+                )
+                for c in rag_result.citations
+            ]
+        else:
+            # Fallback to standard conversational response with tone adaptation
+            llm = get_llm_provider()
+            tone_instruction = tone_adapter.get_system_directive(
+                sentiment=sentiment_res.sentiment,
+                risk_type=sentiment_res.risk_type
+            )
+            # Inject restored summary if session was restored (Scenario 64)
+            summary_context = ""
+            if conv.status == "RESTORED" and conv.summaries:
+                summary_context = f"\n[Restored Session Summary: {conv.summaries[-1].summary_text}]\n"
+
+            system_prompt = (
+                "You are an empathetic, professional AI customer service assistant. "
+                "Provide direct, helpful assistance based strictly on verified policy and facts.\n"
+                f"{summary_context}"
+                f"{tone_instruction}"
+            )
+            llm_messages = [{"role": "user" if m.sender_role == "CUSTOMER" else "assistant", "content": m.masked_content} for m in history]
+            llm_messages.append({"role": "user", "content": user_msg.masked_content})
+            assistant_text = await llm.generate_response(llm_messages, system_prompt=system_prompt)
 
     masked_assistant_content = masker.mask_text(assistant_text)
 
-    # 8. Store assistant message
+    # 11. Store assistant message
     asst_msg = Message(
         conversation_id=conv.id,
         sender_role="ASSISTANT",
@@ -208,7 +267,7 @@ async def post_message(
     # Update conversation last activity timestamp
     conv.last_message_at = Clock.now()
 
-    # 9. Evaluate Deterministic Escalation Triggers (High risk, negative streak)
+    # 12. Evaluate Deterministic Escalation Triggers
     esc_decision = escalation_engine.evaluate_triggers(
         sentiment_res=sentiment_res,
         user_message=message_in.content
@@ -254,7 +313,13 @@ async def post_message(
         escalated=is_escalated,
         escalation_reason=esc_reason,
         ticket_id=ticket_id,
-        citations=citations_data
+        citations=citations_data,
+        detected_intents=intent_res.all_intents,
+        is_compound_intent=intent_res.is_compound,
+        language_detected=lang_res.primary_language,
+        is_transliterated=lang_res.is_transliterated,
+        is_mixed_language=lang_res.is_mixed_language,
+        confirmed_entities=confirmed_entities
     )
 
 

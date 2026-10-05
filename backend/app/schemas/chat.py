@@ -45,6 +45,12 @@ class MessageResponse(BaseModel):
     escalation_reason: Optional[str] = None
     ticket_id: Optional[str] = None
     citations: List[CitationRead] = Field(default_factory=list)
+    detected_intents: List[str] = Field(default_factory=list)
+    is_compound_intent: bool = False
+    language_detected: Optional[str] = "en"
+    is_transliterated: bool = False
+    is_mixed_language: bool = False
+    confirmed_entities: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ConversationCreate(BaseModel):
