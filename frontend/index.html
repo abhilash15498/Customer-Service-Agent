@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusAI - Enterprise Customer Service Platform</title>
+  <meta name="description" content="Production-grade AI Customer Service Platform featuring RAG knowledge arbitration, multimodal OCR evidence comparison, SLA tracking, and multilingual intelligence.">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <!-- ========================================================================
+       TOP HEADER & WORKSPACE NAVIGATION
+       ======================================================================== -->
+  <header class="app-header" id="app-header">
+    <div class="brand-section" id="brand-section">
+      <div class="brand-logo" id="brand-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title" id="brand-title">NexusAI Enterprise Support</h1>
+      </div>
+      <span class="brand-badge" id="brand-badge">PROD • RAG v2</span>
+    </div>
+
+    <!-- Role Switcher Tabs -->
+    <nav class="role-tabs" id="role-navigation-tabs" aria-label="Role Navigation">
+      <button class="role-tab-btn active" id="tab-customer" onclick="switchView('customer')">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        Customer Portal
+      </button>
+      <button class="role-tab-btn" id="tab-agent" onclick="switchView('agent')">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
+        Agent Dashboard
+      </button>
+      <button class="role-tab-btn" id="tab-admin" onclick="switchView('admin')">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Admin & DevOps
+      </button>
+    </nav>
+
+    <!-- Header Actions & Clock -->
+    <div class="header-actions" id="header-actions">
+      <div class="clock-pill" id="clock-pill" title="Current Platform Clock (Click to view Time Machine)">
+        <span class="clock-dot" id="clock-status-dot"></span>
+        <span id="clock-display-text">2026-10-06 13:30 UTC</span>
+      </div>
+
+      <div class="user-badge" id="user-profile-badge" onclick="openLoginModal()">
+        <div class="avatar-circle" id="user-avatar-initials">CU</div>
+        <span id="user-display-name">Customer Demo</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN APPLICATION VIEW WRAPPER
+       ======================================================================== -->
+  <main class="app-main" id="app-main-content">
+
+    <!-- ----------------------------------------------------------------------
+         VIEW 1: CUSTOMER SUPPORT CHAT & MULTIMODAL EVIDENCE PORTAL
+         ---------------------------------------------------------------------- -->
+    <section class="view-container active" id="view-customer">
+      <div class="customer-layout">
+
+        <!-- Left: Sessions Sidebar -->
+        <aside class="sidebar-panel" id="customer-sessions-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+              Conversations
+            </h2>
+            <button class="btn-icon" id="btn-new-conversation" title="Start New Session" onclick="createNewConversation()">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+          </div>
+
+          <div class="session-list" id="session-list-container">
+            <!-- Dynamically populated session cards -->
+          </div>
+        </aside>
+
+        <!-- Center: Chat Canvas -->
+        <section class="chat-canvas" id="customer-chat-canvas">
+          <div class="chat-header" id="chat-header">
+            <div class="chat-header-info">
+              <span style="font-weight:700;" id="chat-session-title">Active Support Session</span>
+              <span class="meta-chip entity" id="chat-session-id-chip">#SESSION-ID</span>
+            </div>
+            <div class="chat-status-indicator" id="chat-status-indicator">
+              <span class="clock-dot" style="background:var(--success);"></span>
+              <span id="chat-status-text">Online • RAG Grounded</span>
+            </div>
+          </div>
+
+          <!-- Real-Time Escalation / Risk Alert Banner -->
+          <div class="escalation-banner" id="escalation-alert-banner">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              <span id="escalation-banner-text">High-Priority Condition Detected. Ticket created and dispatched.</span>
+            </div>
+            <span class="meta-chip risk" id="escalation-ticket-tag">TICKET CREATED</span>
+          </div>
+
+          <!-- Message Thread Container -->
+          <div class="chat-messages-container" id="chat-messages-stream">
+            <!-- Dynamically loaded conversation messages -->
+          </div>
+
+          <!-- Chat Input Bar -->
+          <footer class="chat-input-bar" id="chat-input-bar">
+            <div class="input-quick-actions">
+              <div class="language-selector" id="language-selector-wrapper">
+                <label for="select-chat-language" style="font-size:0.75rem; color:var(--text-muted);">Language:</label>
+                <select id="select-chat-language" onchange="onLanguageChange(this.value)">
+                  <option value="auto">Auto-Detect (Polyglot)</option>
+                  <option value="en">English (en)</option>
+                  <option value="kn">Kannada (kn / ಕನ್ನಡ)</option>
+                  <option value="hi">Hindi (hi / हिन्दी)</option>
+                  <option value="es">Spanish (es / Español)</option>
+                  <option value="fr">French (fr / Français)</option>
+                  <option value="de">German (de / Deutsch)</option>
+                </select>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-muted);" id="language-indicator-pill">
+                Detected: <strong style="color:var(--text-accent);" id="current-detected-lang">en</strong>
+              </div>
+            </div>
+
+            <div class="chat-input-wrapper">
+              <input 
+                type="text" 
+                id="input-customer-message" 
+                class="chat-input-field" 
+                placeholder="Ask a question, report an issue, or mention your order #..." 
+                autocomplete="off"
+                onkeydown="if(event.key === 'Enter') sendCustomerMessage()"
+              />
+              <button class="btn-send" id="btn-send-message" onclick="sendCustomerMessage()">
+                <span>Send</span>
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
+          </footer>
+        </section>
+
+        <!-- Right: Multimodal Upload & Evidence Inspector -->
+        <aside class="evidence-panel" id="customer-evidence-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12l-4-5z"/></svg>
+              Document Evidence
+            </h2>
+          </div>
+
+          <!-- Drag and Drop Zone -->
+          <div class="dropzone-container" id="file-dropzone" onclick="document.getElementById('file-upload-input').click()">
+            <input type="file" id="file-upload-input" style="display:none;" accept="image/png,image/jpeg,application/pdf" onchange="handleFileSelect(this.files)">
+            <svg class="dropzone-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <div class="dropzone-text"><strong>Click to upload</strong> or drag & drop</div>
+            <div class="dropzone-hint">PNG, JPEG, PDF up to 15MB</div>
+          </div>
+
+          <!-- Upload Status & Evidence Discrepancy Card -->
+          <div class="comparison-card" id="evidence-comparison-result" style="display:none;">
+            <div class="comparison-header">
+              <span style="font-weight:700;">Evidence Analysis</span>
+              <span class="comparison-badge match" id="evidence-match-badge">MATCH</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Document:</span>
+              <span class="data-value" id="evidence-doc-name">invoice_4521.png</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Claim Order:</span>
+              <span class="data-value" id="evidence-claim-order">4521</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Invoice Order:</span>
+              <span class="data-value" id="evidence-invoice-order">4521</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Claim Amount:</span>
+              <span class="data-value" id="evidence-claim-amt">₹24,999.00</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Invoice Amount:</span>
+              <span class="data-value" id="evidence-invoice-amt">₹24,999.00</span>
+            </div>
+            <div id="evidence-discrepancy-note" style="margin-top:0.5rem; color:var(--text-accent); font-size:0.75rem;">
+              Verified matching order evidence.
+            </div>
+          </div>
+
+          <!-- Confirmed Session Entities Card -->
+          <div class="comparison-card" id="confirmed-entities-card">
+            <div class="comparison-header">
+              <span style="font-weight:700;">Session Entities</span>
+              <span class="meta-chip entity" id="entity-count-chip">2 Locked</span>
+            </div>
+            <div id="confirmed-entities-body">
+              <div style="font-size:0.78rem; color:var(--text-muted);">No entities locked in current conversation.</div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         VIEW 2: HUMAN AGENT DASHBOARD & SLA QUEUE MONITORING
+         ---------------------------------------------------------------------- -->
+    <section class="view-container" id="view-agent">
+      <div class="agent-layout">
+
+        <!-- Left: Ticket Queue Panel -->
+        <aside class="ticket-queue-panel" id="agent-queues-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              Support Tickets & Queues
+            </h2>
+            <button class="btn-icon" id="btn-refresh-tickets" title="Refresh Queues" onclick="loadAgentTickets()">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+          </div>
+
+          <!-- Queue Filter Tabs -->
+          <div class="queue-filter-bar" id="queue-filter-bar">
+            <button class="queue-pill active" onclick="filterQueue('all')">All Queues</button>
+            <button class="queue-pill" onclick="filterQueue('general_support')">General</button>
+            <button class="queue-pill" onclick="filterQueue('billing')">Billing</button>
+            <button class="queue-pill" onclick="filterQueue('payments')">Payments</button>
+            <button class="queue-pill" onclick="filterQueue('security')">Security</button>
+            <button class="queue-pill" onclick="filterQueue('legal')">Legal</button>
+          </div>
+
+          <!-- Ticket Feed -->
+          <div class="ticket-feed" id="ticket-feed-container">
+            <!-- Dynamically populated ticket cards -->
+          </div>
+        </aside>
+
+        <!-- Right: Ticket Detail & Handoff Summary Panel -->
+        <section class="ticket-detail-panel" id="agent-ticket-detail-panel">
+          <div class="panel-header">
+            <div>
+              <span class="ticket-id" id="detail-ticket-id">SELECT A TICKET</span>
+              <h2 style="font-size:1.15rem; font-weight:700; margin-top:0.25rem;" id="detail-ticket-title">No Ticket Selected</h2>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <span class="priority-tag critical" id="detail-ticket-priority">CRITICAL</span>
+              <span class="session-status-badge active" id="detail-ticket-status">OPEN</span>
+            </div>
+          </div>
+
+          <!-- SLA Progress Meter Card -->
+          <div class="comparison-card" id="agent-sla-card">
+            <div class="sla-meter-labels">
+              <span>SLA Target: <strong id="sla-target-minutes">30 mins (Active Working Hours)</strong></span>
+              <span id="sla-remaining-time">Remaining: 18m 20s</span>
+            </div>
+            <div class="sla-progress-track">
+              <div class="sla-progress-bar normal" id="sla-progress-bar-fill" style="width: 40%;"></div>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.35rem; display:flex; justify-content:space-between;">
+              <span>Weekends & National Holidays Excluded</span>
+              <span id="sla-alert-indicator" style="color:var(--success);">Within SLA</span>
+            </div>
+          </div>
+
+          <!-- PII/PCI-Masked Human Handoff Summary -->
+          <div class="handoff-summary-card" id="agent-handoff-card">
+            <div class="handoff-summary-title">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-.75L9 9V4zm9 16H6V4h1v9l3-2.25L13 13V4h5v16z"/></svg>
+              Masked Human Agent Handoff Summary (Req 5.6)
+            </div>
+            <div class="handoff-summary-text" id="detail-handoff-text">
+              Select a ticket from the queue on the left to inspect customer context, masked sentiment findings, and verified policy citations.
+            </div>
+          </div>
+
+          <!-- Multimodal Evidence Inspection Box -->
+          <div class="comparison-card" id="agent-evidence-card">
+            <div class="comparison-header">
+              <span style="font-weight:700;">Customer Claim vs. Attached Document</span>
+              <span class="comparison-badge" id="agent-evidence-badge">INSPECT</span>
+            </div>
+            <div id="agent-evidence-body" style="font-size:0.85rem; line-height:1.6; color:var(--text-secondary);">
+              No attached documents on this ticket.
+            </div>
+          </div>
+
+          <!-- Action Buttons Bar -->
+          <div class="agent-action-bar" id="agent-action-bar">
+            <button class="btn-primary" id="btn-claim-ticket" onclick="claimSelectedTicket()">Claim Ticket</button>
+            <button class="btn-secondary" id="btn-reassign-ticket" onclick="reassignSelectedTicket()">Transfer Queue</button>
+            <button class="btn-secondary" id="btn-resolve-ticket" style="color:var(--success);" onclick="resolveSelectedTicket()">Mark Resolved</button>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         VIEW 3: ADMINISTRATOR & DEVOPS CONSOLE
+         ---------------------------------------------------------------------- -->
+    <section class="view-container" id="view-admin">
+      <div class="admin-layout">
+
+        <!-- Card 1: Knowledge Base DevOps Studio -->
+        <div class="admin-card" id="admin-kb-studio">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+              Knowledge Base DevOps Pipeline (Module 3)
+            </h2>
+            <button class="btn-primary" style="padding:0.4rem 0.85rem; font-size:0.78rem;" id="btn-force-deploy" onclick="triggerMaintenanceDeploy()">
+              Force Window Deploy
+            </button>
+          </div>
+
+          <p style="font-size:0.8rem; color:var(--text-secondary);">
+            Automated quality evaluation, SHA-256 duplicate detection, 02:00-03:00 UTC maintenance staging, and instant 1-click rollback.
+          </p>
+
+          <!-- Upload Article Form -->
+          <div style="display:flex; flex-direction:column; gap:0.6rem;">
+            <input type="text" id="admin-kb-title" class="chat-input-wrapper" style="width:100%;" placeholder="Document Title (e.g. Return Policy 2026)">
+            <textarea id="admin-kb-content" class="chat-input-wrapper" style="width:100%; height:80px; resize:vertical;" placeholder="Policy Markdown Content with effective dates..."></textarea>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:var(--text-muted);" id="maintenance-window-status">Window: 02:00-03:00 UTC (Closed)</span>
+              <button class="btn-secondary" id="btn-stage-article" onclick="stageKnowledgeDocument()">Stage Document</button>
+            </div>
+          </div>
+
+          <!-- Staged / Active Versions Table -->
+          <div class="audit-table-wrapper">
+            <table class="audit-table" id="kb-versions-table">
+              <thead>
+                <tr>
+                  <th>Doc Title</th>
+                  <th>Version</th>
+                  <th>Status</th>
+                  <th>Grounding</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="kb-versions-tbody">
+                <!-- Dynamically populated versions -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Card 2: Time Machine (Simulated Clock Control) -->
+        <div class="admin-card" id="admin-time-machine">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+              Simulated Clock / Time Machine
+            </h2>
+            <button class="btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.75rem;" id="btn-clock-reset" onclick="resetSimulatedClock()">Reset Clock</button>
+          </div>
+
+          <div style="background:var(--bg-surface); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">Current Active Time</div>
+              <div style="font-size:1.1rem; font-weight:700; font-family:var(--font-mono); color:var(--warning);" id="time-machine-current-label">
+                2026-10-06 13:30:00 UTC
+              </div>
+            </div>
+            <span class="meta-chip sentiment" id="time-machine-mode-badge">REAL-TIME</span>
+          </div>
+
+          <div class="time-machine-controls">
+            <button class="time-btn" id="btn-jump-35m" onclick="advanceClockMinutes(35)">
+              +35 Minutes<br><span style="font-size:0.65rem; color:var(--text-muted);">Test Inactivity Timeout</span>
+            </button>
+            <button class="time-btn" id="btn-jump-8d" onclick="advanceClockDays(8)">
+              +8 Days<br><span style="font-size:0.65rem; color:var(--text-muted);">Test File Purge Expiry</span>
+            </button>
+            <button class="time-btn" id="btn-jump-weekend" onclick="jumpToWeekend()">
+              Jump to Saturday<br><span style="font-size:0.65rem; color:var(--text-muted);">Test Weekend Exclusion</span>
+            </button>
+            <button class="time-btn" id="btn-jump-maint" onclick="jumpToMaintenanceWindow()">
+              Jump to 02:30 UTC<br><span style="font-size:0.65rem; color:var(--text-muted);">Open Maintenance Window</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 3: Dynamic Runtime Configuration Registry -->
+        <div class="admin-card" id="admin-config-registry">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.44 2.18 14.25 2 14 2h-4c-.25 0-.44.18-.47.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.22.42.47.42h4c.25 0 .44-.18.47-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+              Live Runtime Configuration
+            </h2>
+            <button class="btn-primary" style="padding:0.35rem 0.75rem; font-size:0.75rem;" id="btn-save-runtime-cfg" onclick="saveRuntimeConfig()">Save Changes</button>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; font-size:0.8rem;">
+            <div>
+              <label for="cfg-sla-standard" style="color:var(--text-muted); display:block; margin-bottom:0.25rem;">Standard SLA (Mins):</label>
+              <input type="number" id="cfg-sla-standard" class="chat-input-wrapper" style="width:100%;" value="120">
+            </div>
+            <div>
+              <label for="cfg-sla-critical" style="color:var(--text-muted); display:block; margin-bottom:0.25rem;">Critical SLA (Mins):</label>
+              <input type="number" id="cfg-sla-critical" class="chat-input-wrapper" style="width:100%;" value="15">
+            </div>
+            <div>
+              <label for="cfg-biz-start" style="color:var(--text-muted); display:block; margin-bottom:0.25rem;">Business Start (UTC):</label>
+              <input type="text" id="cfg-biz-start" class="chat-input-wrapper" style="width:100%;" value="09:00">
+            </div>
+            <div>
+              <label for="cfg-biz-end" style="color:var(--text-muted); display:block; margin-bottom:0.25rem;">Business End (UTC):</label>
+              <input type="text" id="cfg-biz-end" class="chat-input-wrapper" style="width:100%;" value="17:00">
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: System Audit Log Explorer -->
+        <div class="admin-card full-width" id="admin-audit-explorer">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+              Immutable System Audit Log Explorer
+            </h2>
+            <button class="btn-icon" id="btn-refresh-audit" onclick="loadAuditLogs()">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+          </div>
+
+          <div class="audit-table-wrapper">
+            <table class="audit-table" id="audit-log-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Event Type</th>
+                  <th>Entity ID</th>
+                  <th>Condition Triggered</th>
+                  <th>Context Details</th>
+                </tr>
+              </thead>
+              <tbody id="audit-log-tbody">
+                <!-- Dynamically populated audit events -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       MODALS & TOAST NOTIFICATION CONTAINER
+       ======================================================================== -->
+
+  <!-- Citation Excerpt Modal -->
+  <div id="citation-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); z-index:200; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-surface-elevated); border:1px solid var(--border-medium); border-radius:var(--radius-lg); padding:1.5rem; max-width:550px; width:90%; box-shadow:var(--shadow-lg);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 id="citation-modal-title" style="font-size:1.05rem; font-weight:700; color:var(--text-accent);">Policy Citation</h3>
+        <button onclick="closeCitationModal()" class="btn-icon" style="width:28px; height:28px;">&times;</button>
+      </div>
+      <div id="citation-modal-content" style="font-size:0.88rem; line-height:1.6; color:var(--text-secondary); margin-bottom:1.25rem;">
+        Citation content excerpt...
+      </div>
+      <button class="btn-primary" style="width:100%;" onclick="closeCitationModal()">Close Citation</button>
+    </div>
+  </div>
+
+  <!-- Quick Login Preset Modal -->
+  <div id="login-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); z-index:200; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-surface-elevated); border:1px solid var(--border-medium); border-radius:var(--radius-lg); padding:1.5rem; max-width:440px; width:90%; box-shadow:var(--shadow-lg);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-primary);">Switch Active Role</h3>
+        <button onclick="closeLoginModal()" class="btn-icon" style="width:28px; height:28px;">&times;</button>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.25rem;">Select an identity to test multi-tenant customer isolation, support queues, or administrator privileges.</p>
+      
+      <div style="display:flex; flex-direction:column; gap:0.65rem;">
+        <button class="btn-secondary" style="text-align:left; padding:0.85rem;" onclick="performQuickLogin('customer')">
+          <div style="font-weight:700;">Customer Identity</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">customer@example.com (Role: CUSTOMER)</div>
+        </button>
+        <button class="btn-secondary" style="text-align:left; padding:0.85rem;" onclick="performQuickLogin('agent')">
+          <div style="font-weight:700;">Support Agent Identity</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">agent@example.com (Role: AGENT - Tier 2)</div>
+        </button>
+        <button class="btn-secondary" style="text-align:left; padding:0.85rem;" onclick="performQuickLogin('admin')">
+          <div style="font-weight:700;">DevOps Administrator</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">admin@example.com (Role: ADMIN)</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Stream -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>

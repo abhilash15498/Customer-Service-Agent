@@ -58,6 +58,15 @@ async def root_health():
     }
 
 
+# Static Frontend Mounting
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
+if frontend_path.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
