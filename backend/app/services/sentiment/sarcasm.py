@@ -54,6 +54,11 @@ class SarcasmDetector:
         if not has_praise:
             return False, 0.0, None
 
+        # Intra-sentence contradiction: praise combined with complaint in the same message
+        has_complaint = any(re.search(pat, msg_clean) for pat in cls.NEGATIVE_COMPLAINT_PATTERNS)
+        if has_complaint:
+            return True, 0.95, "Intra-sentence contradiction between praise and complaint."
+
         # 2. Conversational context check (Scenario 1)
         # If the message is short praise (e.g. "Great service.") following negative complaints in history:
         if recent_history_messages:

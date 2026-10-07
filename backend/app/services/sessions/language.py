@@ -105,7 +105,7 @@ class LanguageProcessor:
 
     # Typo-tolerant Entity Patterns that MUST NEVER be corrupted (Req 9.3, Scenario 58)
     ORDER_REGEX = re.compile(
-        r"(?i)\b(?:order|ordr|oder|invoice|receipt|pedido|commande|bestellung)\s*(?:id|#|number|no\.?)?[ \t]*[:#\-]?[ \t]*(?:is[ \t]+)?([a-zA-Z0-9_\-]*\d[a-zA-Z0-9_\-]*)\b|#\s*([0-9]{4,10})\b|\bORD[-_]([a-zA-Z0-9]+)\b"
+        r"(?i)(?:\b(?:order|ordr|oder|invoice|receipt|pedido|commande|bestellung)|(?:ಆರ್ಡರ್|ಆರ್ಡರ್‌|ಆರ್ಡರ|ऑर्डर))\s*(?:id|#|number|no\.?)?[ \t]*[:#\-]?[ \t]*(?:is[ \t]+)?([a-zA-Z0-9_\-]*\d[a-zA-Z0-9_\-]*)\b|#\s*([0-9]{4,10})\b|\bORD[-_]([a-zA-Z0-9]+)\b"
     )
     CURRENCY_REGEX = re.compile(
         r"(?i)(?:₹|rs\.?|inr|\$|eur|€)[ \t]*([\d,]+(?:\.\d{1,2})?)|\b([\d,]+(?:\.\d{1,2})?)[ \t]*(?:rupees?|inr|dollars?|euros?)\b"

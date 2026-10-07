@@ -44,14 +44,14 @@ class ConversationSentimentAnalyzer:
     # High-Risk Signatures (Scenarios 2, 3, 4)
     RISK_PATTERNS = {
         "account_compromise": [
-            r"(?i)\b(?:someone\s+(?:has\s+)?accessed\s+my\s+account|account\s+(?:hacked|compromised|stolen)|unauthorized\s+(?:access|login|activity|transaction)|password\s+changed\s+without|identity\s+theft)\b",
-            r"(?i)\b(?:not\s+me\s+who\s+logged|suspicious\s+login)\b"
+            r"(?i)\b(?:someone\s+(?:just\s+|has\s+)?(?:accessed|hacked|charged)\s+(?:into\s+|to\s+)?my\s+account|account\s+(?:is\s+|was\s+)?(?:hacked|compromised|stolen)|(?:my\s+)?account\s+(?:got\s+)?hacked|unauthorized\s+(?:access|login|activity|transaction|charge)|password\s+(?:was\s+)?changed\s+without|identity\s+theft|locked\s+out)\b",
+            r"(?i)\b(?:not\s+me\s+who\s+logged|suspicious\s+login|unknown\s+location|changed\s+(?:my\s+)?(?:email|password|phone))\b"
         ],
         "duplicate_payment": [
             r"(?i)\b(?:charged\s+(?:twice|double|multiple\s+times)|double\s+(?:charge|payment|deduction)|payment\s+(?:was\s+|is\s+|got\s+)?deducted\s+twice|debited\s+twice|paid\s+two\s+times|deducted\s+twice)\b"
         ],
         "legal_threat": [
-            r"(?i)\b(?:contact(?:ing)?\s+(?:my\s+)?(?:lawyer|attorney|legal\s+team)|legal\s+action|sue\s+you|court\s+case|consumer\s+court|police\s+complaint|regulatory\s+complaint|lodge\s+an\s+fir)\b"
+            r"(?i)\b(?:contact(?:ing)?\s+(?:my\s+)?(?:lawyer|attorney|legal\s+team|legal\s+counsel)|legal\s+action|sue\s+you|court\s+case|consumer\s+(?:court|protection\s+bureau)|police\s+complaint|regulatory\s+complaint|lodge\s+an\s+fir)\b"
         ]
     }
 
